@@ -13,6 +13,7 @@
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow *window);
+void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 GLuint loadShader(const char* vertexPath, const char* fragmentPath);
 void generateSphere(std::vector<float>& vertices, std::vector<unsigned int>& indices, float radius, int sectorCount, int stackCount);
 void calculateTargetDeformation(std::vector<float>& targetVertices, const glm::vec3& objectPosition);
@@ -55,6 +56,7 @@ int main() {
     }
     glfwMakeContextCurrent(window);
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+    glfwSetScrollCallback(window, scroll_callback);
 
     if (glewInit() != GLEW_OK) {
         std::cerr << "Falha ao inicializar GLEW" << std::endl;
@@ -144,7 +146,7 @@ int main() {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         glm::mat4 projection = glm::perspective(glm::radians(45.0f), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
-        glm::mat4 view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
+        glm::mat4 view = glm::lookAt(cameraPos, cameraPos + glm::normalize(cameraFront), cameraUp);
 
         glUseProgram(sphereShader);
         glUniformMatrix4fv(glGetUniformLocation(sphereShader, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
@@ -211,6 +213,14 @@ void processInput(GLFWwindow *window) {
         objectPos.y += verticalSpeed;
     if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS)
         objectPos.y -= verticalSpeed;
+}
+
+void scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
+    float zoomSensitivity = 1.5f;
+    cameraPos += glm::normalize(cameraFront) * (float)yoffset * zoomSensitivity;
+    
+    if (cameraPos.y < 2.0f) cameraPos.y = 2.0f;
+    if (cameraPos.y > 80.0f) cameraPos.y = 80.0f;
 }
 
 void calculateTargetDeformation(std::vector<float>& targetVertices, const glm::vec3& objectPosition) {
