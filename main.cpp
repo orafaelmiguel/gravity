@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 #include <cmath>
+#include <algorithm> // Necessário para std::min
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow *window);
@@ -38,7 +39,7 @@ int main() {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Simulador de Gravidade v2.0", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Simulador de Gravidade v3.0", NULL, NULL);
     if (window == NULL) {
         std::cerr << "Falha ao criar janela GLFW" << std::endl;
         glfwTerminate();
@@ -197,8 +198,14 @@ void processInput(GLFWwindow *window) {
 }
 
 void calculateTargetDeformation(std::vector<float>& targetVertices, const glm::vec3& objectPosition) {
-    float amplitude = -4.0f;
-    float steepness = 0.2f;
+    const float base_amplitude = -4.0f;
+    const float base_y = 1.0f;
+    const float height_sensitivity = 2.0f;
+    
+    float dynamic_amplitude = base_amplitude + (objectPosition.y - base_y) * height_sensitivity;
+    dynamic_amplitude = std::min(0.0f, dynamic_amplitude);
+
+    const float steepness = 0.2f;
 
     for (size_t i = 0; i < targetVertices.size(); i += 3) {
         float x = targetVertices[i];
@@ -208,7 +215,7 @@ void calculateTargetDeformation(std::vector<float>& targetVertices, const glm::v
         float dz = z - objectPosition.z;
         float distanceSq = dx * dx + dz * dz;
 
-        targetVertices[i + 1] = amplitude * exp(-steepness * distanceSq);
+        targetVertices[i + 1] = dynamic_amplitude * exp(-steepness * distanceSq);
     }
 }
 
@@ -264,14 +271,13 @@ void generateSphere(std::vector<float>& vertices, std::vector<unsigned int>& ind
 
     float x, y, z, xy;
     float nx, ny, nz, lengthInv = 1.0f / radius;
-    float s, t;
 
-    float sectorStep = 2 * M_PI / sectorCount;
-    float stackStep = M_PI / stackCount;
+    float sectorStep = 2 * (float)M_PI / sectorCount;
+    float stackStep = (float)M_PI / stackCount;
     float sectorAngle, stackAngle;
 
     for (int i = 0; i <= stackCount; ++i) {
-        stackAngle = M_PI / 2 - i * stackStep;
+        stackAngle = (float)M_PI / 2 - i * stackStep;
         xy = radius * cosf(stackAngle);
         z = radius * sinf(stackAngle);
 
