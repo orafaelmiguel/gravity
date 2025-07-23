@@ -1,0 +1,37 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "build",
+            "type": "cppbuild",
+            "command": "C:/msys64/mingw64/bin/g++.exe",
+            "args": [
+                "-fdiagnostics-color=always",
+                "-g",
+                "${workspaceFolder}/main.cpp",
+                "-o",
+                "${workspaceFolder}/src/gravity_sim.exe",
+                "-I",
+                "C:/msys64/mingw64/include",
+                "-L",
+                "C:/msys64/mingw64/lib",
+                "-lglew32",
+                "-lglfw3",
+                "-lopengl32",
+                "-static-libgcc",
+                "-static-libstdc++",
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "detail": "compiler: C:/msys64/mingw64/bin/g++.exe"
+        }
+    ]
+}
