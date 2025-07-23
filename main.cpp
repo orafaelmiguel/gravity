@@ -9,7 +9,7 @@
 #include <string>
 #include <vector>
 #include <cmath>
-#include <algorithm> // Necessário para std::min
+#include <algorithm>
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow *window);
@@ -30,6 +30,13 @@ const int GRID_SIZE = 100;
 const float GRID_SCALE = 0.5f;
 const float GRID_SMOOTHING_FACTOR = 0.08f;
 
+const std::vector<float> horizontalSpeedSettings = { 0.01f, 0.04f, 0.09f };
+const std::vector<float> verticalSpeedSettings = { 0.015f, 0.06f, 0.13f };
+const std::vector<std::string> speedNames = { "Lenta", "Normal", "Rápida" };
+int currentSpeedIndex = 1; 
+bool v_key_pressed_last_frame = false;
+
+
 int main() {
     if (!glfwInit()) {
         std::cerr << "Falha ao inicializar GLFW" << std::endl;
@@ -39,7 +46,8 @@ int main() {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Simulador de Gravidade v3.0", NULL, NULL);
+    std::string initial_title = "Simulador de Gravidade [Velocidade: " + speedNames[currentSpeedIndex] + "]";
+    GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, initial_title.c_str(), NULL, NULL);
     if (window == NULL) {
         std::cerr << "Falha ao criar janela GLFW" << std::endl;
         glfwTerminate();
@@ -178,9 +186,17 @@ int main() {
 void processInput(GLFWwindow *window) {
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
+    
+    bool v_key_is_down = glfwGetKey(window, GLFW_KEY_V) == GLFW_PRESS;
+    if (v_key_is_down && !v_key_pressed_last_frame) {
+        currentSpeedIndex = (currentSpeedIndex + 1) % speedNames.size();
+        std::string newTitle = "Simulador de Gravidade [Velocidade: " + speedNames[currentSpeedIndex] + "]";
+        glfwSetWindowTitle(window, newTitle.c_str());
+    }
+    v_key_pressed_last_frame = v_key_is_down;
 
-    float speed = 0.04f;
-    float verticalSpeed = 0.06f;
+    float speed = horizontalSpeedSettings[currentSpeedIndex];
+    float verticalSpeed = verticalSpeedSettings[currentSpeedIndex];
 
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
         objectPos.z -= speed;
