@@ -14,6 +14,8 @@
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow *window);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
+void mouse_button_callback(GLFWwindow* window, int button, int action, int mods);
+void cursor_position_callback(GLFWwindow* window, double xpos, double ypos);
 GLuint loadShader(const char* vertexPath, const char* fragmentPath);
 void generateSphere(std::vector<float>& vertices, std::vector<unsigned int>& indices, float radius, int sectorCount, int stackCount);
 void calculateTargetDeformation(std::vector<float>& targetVertices, const glm::vec3& objectPosition);
@@ -27,6 +29,9 @@ glm::vec3 cameraUp    = glm::vec3(0.0f, 1.0f, 0.0f);
 
 glm::vec3 objectPos = glm::vec3(0.0f, 1.0f, 0.0f);
 
+bool is_panning = false;
+double last_mouse_x = 0.0, last_mouse_y = 0.0;
+
 const int GRID_SIZE = 100;
 const float GRID_SCALE = 0.5f;
 const float GRID_SMOOTHING_FACTOR = 0.08f;
@@ -36,7 +41,6 @@ const std::vector<float> verticalSpeedSettings = { 0.015f, 0.06f, 0.13f };
 const std::vector<std::string> speedNames = { "Lenta", "Normal", "Rápida" };
 int currentSpeedIndex = 1; 
 bool v_key_pressed_last_frame = false;
-
 
 int main() {
     if (!glfwInit()) {
@@ -57,6 +61,9 @@ int main() {
     glfwMakeContextCurrent(window);
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
     glfwSetScrollCallback(window, scroll_callback);
+    glfwSetMouseButtonCallback(window, mouse_button_callback);
+    glfwSetCursorPosCallback(window, cursor_position_callback);
+
 
     if (glewInit() != GLEW_OK) {
         std::cerr << "Falha ao inicializar GLEW" << std::endl;
@@ -146,7 +153,7 @@ int main() {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         glm::mat4 projection = glm::perspective(glm::radians(45.0f), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
-        glm::mat4 view = glm::lookAt(cameraPos, cameraPos + glm::normalize(cameraFront), cameraUp);
+        glm::mat4 view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
 
         glUseProgram(sphereShader);
         glUniformMatrix4fv(glGetUniformLocation(sphereShader, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
@@ -217,10 +224,39 @@ void processInput(GLFWwindow *window) {
 
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
     float zoomSensitivity = 1.5f;
-    cameraPos += glm::normalize(cameraFront) * (float)yoffset * zoomSensitivity;
+    cameraPos += cameraFront * (float)yoffset * zoomSensitivity;
     
     if (cameraPos.y < 2.0f) cameraPos.y = 2.0f;
     if (cameraPos.y > 80.0f) cameraPos.y = 80.0f;
+}
+
+void mouse_button_callback(GLFWwindow* window, int button, int action, int mods) {
+    if (button == GLFW_MOUSE_BUTTON_LEFT) {
+        if (action == GLFW_PRESS) {
+            is_panning = true;
+            glfwGetCursorPos(window, &last_mouse_x, &last_mouse_y);
+        } else if (action == GLFW_RELEASE) {
+            is_panning = false;
+        }
+    }
+}
+
+void cursor_position_callback(GLFWwindow* window, double xpos, double ypos) {
+    if (!is_panning) {
+        return;
+    }
+
+    float dx = xpos - last_mouse_x;
+    float dy = ypos - last_mouse_y;
+
+    last_mouse_x = xpos;
+    last_mouse_y = ypos;
+
+    float pan_sensitivity = 0.05f;
+    glm::vec3 right = glm::normalize(glm::cross(cameraFront, cameraUp));
+    
+    cameraPos -= right * dx * pan_sensitivity;
+    cameraPos += cameraUp * dy * pan_sensitivity;
 }
 
 void calculateTargetDeformation(std::vector<float>& targetVertices, const glm::vec3& objectPosition) {
