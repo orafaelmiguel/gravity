@@ -74,7 +74,8 @@ void ParticleSystem::Update(float dt, const std::vector<GravitationalBody>& allB
                 for (const auto& body : allBodies)
                 {
                     float distSq = glm::dot(body.Position - p.Position, body.Position - p.Position);
-                    float forceMagnitude = G * body.Mass * p.Mass / (distSq + SOFTENING_FACTOR * SOFTENING_FACTOR);
+                    float forceMagnitude = body.GravitationalParameter * p.Mass / (distSq + SOFTENING_FACTOR * SOFTENING_FACTOR);
+                    
                     glm::vec3 forceDir = glm::normalize(body.Position - p.Position);
                     totalForce += forceDir * forceMagnitude;
                 }
@@ -138,9 +139,9 @@ void ParticleSystem::respawnParticle(Particle& particle, glm::vec3 spawnOffset)
     float randomX = ((rand() % 100) - 50) / 20.0f;
     float randomZ = ((rand() % 100) - 50) / 20.0f;
     float rColor = 0.5f + ((rand() % 100) / 100.0f);
-    particle.Position = glm::vec3(randomX, 5.0f, randomZ) + spawnOffset;
+    particle.Position = spawnOffset + glm::vec3(randomX, 2.0f, randomZ); // Spawn um pouco mais alto
     particle.Life = 5.0f;
     particle.Velocity = glm::vec3(0.0f);
-    particle.Mass = 0.1f; // add mass to particle 
+    particle.Mass = 1.0f; // Massa de inércia da partícula
     particle.Color = glm::vec4(rColor, rColor, 1.0f, 1.0f);
 }

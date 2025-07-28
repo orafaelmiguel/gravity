@@ -151,7 +151,8 @@ int main() {
     PostProcessor effects(postProcessShader, SCR_WIDTH, SCR_HEIGHT);
     ParticleSystem particles(particleShader, 5000);
     
-    float sphereMass = 1.0e13; // star
+    float sphereGravitationalParameter = 400.0f; // star
+    float particleCloudGravParameterScale = 2.0f;
 
     while (!glfwWindowShouldClose(window))
     {
@@ -302,7 +303,7 @@ void cursor_position_callback(GLFWwindow* window, double xpos, double ypos) {
 }
 
 void calculateTargetDeformation(std::vector<float>& targetVertices, const std::vector<GravitationalBody>& allBodies) {
-    for (size_t i = 0; i < targetVertices.size(); i += 3) { 
+    for (size_t i = 0; i < targetVertices.size(); i += 3) {
         float x = targetVertices[i];
         float z = targetVertices[i + 2];
         
@@ -313,8 +314,9 @@ void calculateTargetDeformation(std::vector<float>& targetVertices, const std::v
             float dx = x - body.Position.x;
             float dz = z - body.Position.z;
             float rSq = dx * dx + dz * dz;
-            totalPotential += -G * body.Mass / sqrt(rSq + SOFTENING_FACTOR * SOFTENING_FACTOR);
+            totalPotential += -body.GravitationalParameter / sqrt(rSq + SOFTENING_FACTOR * SOFTENING_FACTOR);
         }
+        
         targetVertices[i + 1] = totalPotential * VISUAL_SCALE;
     }
 }
@@ -340,28 +342,55 @@ GLuint loadShader(const char* vertexPath, const char* fragmentPath) {
         fShaderFile.close();
         vertexCode = vShaderStream.str();
         fragmentCode = fShaderStream.str();
-    } catch (std::ifstream::failure& e) {
-        std::cerr << "ERRO::SHADER::ARQUIVO_NAO_LIDO_COM_SUCESSO: " << e.what() << std::endl;
+    }
+    catch (std::ifstream::failure& e) {
+        std::cerr << "ERROR::SHADER::FILE_NOT_READ: " << vertexPath << " ou " << fragmentPath << std::endl;
+        return 0; 
     }
     const char* vShaderCode = vertexCode.c_str();
     const char* fShaderCode = fragmentCode.c_str();
-    
+
     unsigned int vertex, fragment;
+    int success;
+    char infoLog[512];
+
     vertex = glCreateShader(GL_VERTEX_SHADER);
     glShaderSource(vertex, 1, &vShaderCode, NULL);
     glCompileShader(vertex);
-    
+    glGetShaderiv(vertex, GL_COMPILE_STATUS, &success);
+    if (!success) {
+        glGetShaderInfoLog(vertex, 512, NULL, infoLog);
+        std::cerr << "ERROR::SHADER::FRAGMENT::COMPILATION_ERROR FOR " << vertexPath << "\n" << infoLog << std::endl;
+        return 0;
+    }
+
     fragment = glCreateShader(GL_FRAGMENT_SHADER);
     glShaderSource(fragment, 1, &fShaderCode, NULL);
     glCompileShader(fragment);
-    
+    glGetShaderiv(fragment, GL_COMPILE_STATUS, &success);
+    if (!success) {
+        glGetShaderInfoLog(fragment, 512, NULL, infoLog);
+        std::cerr << "ERROR::SHADER::FRAGMENT::COMPILATION_ERROR FOR " << fragmentPath << "\n" << infoLog << std::endl;
+        return 0;
+    }
+
     GLuint ID = glCreateProgram();
     glAttachShader(ID, vertex);
     glAttachShader(ID, fragment);
     glLinkProgram(ID);
-    
+    glGetProgramiv(ID, GL_LINK_STATUS, &success);
+    if (!success) {
+        glGetProgramInfoLog(ID, 512, NULL, infoLog);
+        std::cerr << "ERROR::SHADER::PROGRAM::LINKAGEM_ERROR\n" << infoLog << std::endl;
+        glDeleteShader(vertex);
+        glDeleteShader(fragment);
+        return 0;
+    }
+
     glDeleteShader(vertex);
     glDeleteShader(fragment);
+
+    std::cout << "SHADER LOADED: " << vertexPath << " | " << fragmentPath << std::endl;
     return ID;
 }
 
