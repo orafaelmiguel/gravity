@@ -21,7 +21,7 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 void cursor_position_callback(GLFWwindow* window, double xpos, double ypos);
 GLuint loadShader(const char* vertexPath, const char* fragmentPath);
 void generateSphere(std::vector<float>& vertices, std::vector<unsigned int>& indices, float radius, int sectorCount, int stackCount);
-void calculateTargetDeformation(std::vector<float>& targetVertices, const glm::vec3& objectPosition);
+void calculateTargetDeformation(std::vector<float>& targetVertices, const glm::vec3& objectPosition, const ParticleSystem& particles);
 
 const unsigned int SCR_WIDTH = 1280;
 const unsigned int SCR_HEIGHT = 720;
@@ -159,7 +159,7 @@ int main() {
 
         particles.Update(deltaTime, objectPos, 5, objectPos);
 
-        calculateTargetDeformation(targetGridVertices, objectPos);
+        calculateTargetDeformation(targetGridVertices, objectPos, particles);
 
         for (size_t i = 0; i < gridVertices.size(); i += 3) {
             float currentY = gridVertices[i + 1];
@@ -292,25 +292,39 @@ void cursor_position_callback(GLFWwindow* window, double xpos, double ypos) {
     cameraPos += cameraUp * dy * pan_sensitivity;
 }
 
-void calculateTargetDeformation(std::vector<float>& targetVertices, const glm::vec3& objectPosition) {
-    const float base_amplitude = -4.0f;
-    const float base_y = 1.0f;
-    const float height_sensitivity = 2.0f;
-    
-    float dynamic_amplitude = base_amplitude + (objectPosition.y - base_y) * height_sensitivity;
-    dynamic_amplitude = std::min(0.0f, dynamic_amplitude);
+void calculateTargetDeformation(std::vector<float>& targetVertices, const glm::vec3& spherePosition, const ParticleSystem& particles) {
+    const float base_amplitude_sphere = -4.0f;
+    const float base_y_sphere = 1.0f;
+    const float height_sensitivity_sphere = 2.0f;
+    const float steepness_sphere = 0.2f;
 
-    const float steepness = 0.2f;
+    // particle mass
+    const float particle_mass_scale = -0.05f; 
+    const float steepness_particles = 0.05f;
+    
+    float dynamic_amplitude_sphere = base_amplitude_sphere + (spherePosition.y - base_y_sphere) * height_sensitivity_sphere;
+    dynamic_amplitude_sphere = std::min(0.0f, dynamic_amplitude_sphere);
+
+    float amplitude_particles = particles.TotalMass * particle_mass_scale;
 
     for (size_t i = 0; i < targetVertices.size(); i += 3) {
         float x = targetVertices[i];
         float z = targetVertices[i + 2];
         
-        float dx = x - objectPosition.x;
-        float dz = z - objectPosition.z;
-        float distanceSq = dx * dx + dz * dz;
+        float dx_sphere = x - spherePosition.x;
+        float dz_sphere = z - spherePosition.z;
+        float distSq_sphere = dx_sphere * dx_sphere + dz_sphere * dz_sphere;
+        float deformation_sphere = dynamic_amplitude_sphere * exp(-steepness_sphere * distSq_sphere);
 
-        targetVertices[i + 1] = dynamic_amplitude * exp(-steepness * distanceSq);
+        float deformation_particles = 0.0f;
+        if (particles.TotalMass > 0.01f) {
+            float dx_particles = x - particles.CenterOfMass.x;
+            float dz_particles = z - particles.CenterOfMass.z;
+            float distSq_particles = dx_particles * dx_particles + dz_particles * dz_particles;
+            deformation_particles = amplitude_particles * exp(-steepness_particles * distSq_particles);
+        }
+
+        targetVertices[i + 1] = deformation_sphere + deformation_particles;
     }
 }
 

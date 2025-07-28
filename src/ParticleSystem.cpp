@@ -59,6 +59,10 @@ void ParticleSystem::Update(float dt, const glm::vec3& gravityObjectPos, unsigne
         this->respawnParticle(this->particles[unusedParticle], spawnOffset);
     }
 
+    this->TotalMass = 0.0f;
+    this->CenterOfMass = glm::vec3(0.0f);
+    int activeParticles = 0;
+
     for (unsigned int i = 0; i < this->amount; ++i)
     {
         Particle &p = this->particles[i];
@@ -79,7 +83,16 @@ void ParticleSystem::Update(float dt, const glm::vec3& gravityObjectPos, unsigne
             p.Velocity += glm::normalize(force) * gravityStrength * dt;
             p.Position += p.Velocity * dt;
             p.Color.a = p.Life / 5.0f;
+
+            this->TotalMass += p.Mass;
+            this->CenterOfMass += p.Position * p.Mass; 
+            activeParticles++;
         }
+    }
+
+    if (this->TotalMass > 0.0f)
+    {
+        this->CenterOfMass /= this->TotalMass; // center of mass 
     }
 }
 
@@ -129,5 +142,6 @@ void ParticleSystem::respawnParticle(Particle& particle, glm::vec3 spawnOffset)
     particle.Position = glm::vec3(randomX, 5.0f, randomZ) + spawnOffset;
     particle.Life = 5.0f;
     particle.Velocity = glm::vec3(0.0f);
+    particle.Mass = 0.1f; // add mass to particle 
     particle.Color = glm::vec4(rColor, rColor, 1.0f, 1.0f);
 }
