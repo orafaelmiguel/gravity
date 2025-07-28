@@ -1,4 +1,5 @@
 #include "ParticleSystem.h"
+#include "Physics.h"
 #include <glm/gtc/matrix_transform.hpp> 
 #include <glm/gtc/type_ptr.hpp>         
 #include <iostream>
@@ -63,36 +64,37 @@ void ParticleSystem::Update(float dt, const glm::vec3& gravityObjectPos, unsigne
     this->CenterOfMass = glm::vec3(0.0f);
     int activeParticles = 0;
 
-    for (unsigned int i = 0; i < this->amount; ++i)
+    for (Particle& p : this->particles)
     {
-        Particle &p = this->particles[i];
-        p.Life -= dt; 
         if (p.Life > 0.0f)
-        {	
-            float epsilon = 0.1f;
-            float gravityStrength = 30.0f;
+        {
+            p.Life -= dt;
+            if (p.Life > 0.0f)
+            {
+                glm::vec3 totalForce(0.0f);
+                for (const auto& body : allBodies)
+                {
+                    float distSq = glm::dot(body.Position - p.Position, body.Position - p.Position);
+                    float dist = sqrt(distSq + SOFTENING_FACTOR * SOFTENING_FACTOR);
+                    
+                    float forceMagnitude = G * body.Mass * p.Mass / (distSq + SOFTENING_FACTOR * SOFTENING_FACTOR);
+                    
+                    glm::vec3 forceDir = glm::normalize(body.Position - p.Position);
+                    totalForce += forceDir * forceMagnitude;
+                }
 
-            float height_px = calculateGridHeight(p.Position.x + epsilon, p.Position.z, gravityObjectPos);
-            float height_nx = calculateGridHeight(p.Position.x - epsilon, p.Position.z, gravityObjectPos);
-            float height_pz = calculateGridHeight(p.Position.x, p.Position.z + epsilon, gravityObjectPos);
-            float height_nz = calculateGridHeight(p.Position.x, p.Position.z - epsilon, gravityObjectPos);
-
-            glm::vec3 force = glm::vec3(height_nx - height_px, 0.0f, height_nz - height_pz);
-            force.y = -2.0f; 
-
-            p.Velocity += glm::normalize(force) * gravityStrength * dt;
-            p.Position += p.Velocity * dt;
-            p.Color.a = p.Life / 5.0f;
-
-            this->TotalMass += p.Mass;
-            this->CenterOfMass += p.Position * p.Mass; 
-            activeParticles++;
+                p.Velocity += totalForce / p.Mass * dt;
+                p.Position += p.Velocity * dt;
+                p.Color.a = p.Life / 5.0f;
+                this->TotalMass += p.Mass;
+                this->CenterOfMass += p.Position * p.Mass;
+            }
         }
     }
 
     if (this->TotalMass > 0.0f)
     {
-        this->CenterOfMass /= this->TotalMass; // center of mass 
+        this->CenterOfMass /= this->TotalMass;
     }
 }
 
