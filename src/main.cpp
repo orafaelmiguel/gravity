@@ -4,6 +4,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include "PostProcessor.h"
+#include "ParticleSystem.h"
 #include <glm/gtc/type_ptr.hpp> 
 #include <iostream>
 #include <fstream>
@@ -47,6 +48,9 @@ bool v_key_pressed_last_frame = false;
 bool bloomEnabled = true;
 bool lensingEnabled = true;
 
+float deltaTime = 0.0f;
+float lastFrame = 0.0f;
+
 int main() {
     if (!glfwInit()) {
         std::cerr << "Falha ao inicializar GLFW" << std::endl;
@@ -80,6 +84,7 @@ int main() {
     GLuint gridShader = loadShader("shaders/grid.vert", "shaders/grid.frag");
     GLuint sphereShader = loadShader("shaders/sphere.vert", "shaders/sphere.frag");
     GLuint postProcessShader = loadShader("shaders/postprocess.vert", "shaders/postprocess.frag");
+    GLuint particleShader = loadShader("shaders/particle.vert", "shaders/particle.frag");
 
     std::vector<float> gridVertices;
     std::vector<float> targetGridVertices; 
@@ -141,11 +146,18 @@ int main() {
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
     glEnableVertexAttribArray(1);
 
-     PostProcessor effects(postProcessShader, SCR_WIDTH, SCR_HEIGHT);
+    PostProcessor effects(postProcessShader, SCR_WIDTH, SCR_HEIGHT);
+    ParticleSystem particles(particleShader, 5000); 
 
-     while (!glfwWindowShouldClose(window))
+    while (!glfwWindowShouldClose(window))
     {
+        float currentFrame = glfwGetTime();
+        deltaTime = currentFrame - lastFrame;
+        lastFrame = currentFrame;
+
         processInput(window);
+
+        particles.Update(deltaTime, objectPos, 5, objectPos);
 
         calculateTargetDeformation(targetGridVertices, objectPos);
 
@@ -182,6 +194,9 @@ int main() {
         glUniformMatrix4fv(glGetUniformLocation(gridShader, "model"), 1, GL_FALSE, glm::value_ptr(model));
         glBindVertexArray(gridVAO);
         glDrawElements(GL_LINES, gridIndices.size(), GL_UNSIGNED_INT, 0);
+
+        // render particles
+        particles.Render(view, projection);
 
         effects.EndRender(); 
 
