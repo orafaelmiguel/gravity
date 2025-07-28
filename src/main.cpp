@@ -5,6 +5,7 @@
 #include <glm/gtc/type_ptr.hpp>
 #include "PostProcessor.h"
 #include "ParticleSystem.h"
+#include "Physics.h"
 #include <glm/gtc/type_ptr.hpp> 
 #include <iostream>
 #include <fstream>
@@ -21,7 +22,8 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 void cursor_position_callback(GLFWwindow* window, double xpos, double ypos);
 GLuint loadShader(const char* vertexPath, const char* fragmentPath);
 void generateSphere(std::vector<float>& vertices, std::vector<unsigned int>& indices, float radius, int sectorCount, int stackCount);
-void calculateTargetDeformation(std::vector<float>& targetVertices, const glm::vec3& objectPosition, const ParticleSystem& particles);
+void calculateTargetDeformation(std::vector<float>& targetVertices, const std::vector<GravitationalBody>& allBodies);
+
 
 const unsigned int SCR_WIDTH = 1280;
 const unsigned int SCR_HEIGHT = 720;
@@ -147,7 +149,9 @@ int main() {
     glEnableVertexAttribArray(1);
 
     PostProcessor effects(postProcessShader, SCR_WIDTH, SCR_HEIGHT);
-    ParticleSystem particles(particleShader, 5000); 
+    ParticleSystem particles(particleShader, 5000);
+    
+    float sphereMass = 1.0e13; // star
 
     while (!glfwWindowShouldClose(window))
     {
@@ -157,9 +161,14 @@ int main() {
 
         processInput(window);
 
-        particles.Update(deltaTime, objectPos, 5, objectPos);
+        std::vector<GravitationalBody> allBodies;
+        allBodies.push_back({ objectPos, sphereMass }); 
+        if (particles.TotalMass > 0.1f) {
+            allBodies.push_back({ particles.CenterOfMass, particles.TotalMass }); 
+        }
 
-        calculateTargetDeformation(targetGridVertices, objectPos, particles);
+        particles.Update(deltaTime, allBodies, 5, objectPos);
+        calculateTargetDeformation(targetGridVertices, allBodies);
 
         for (size_t i = 0; i < gridVertices.size(); i += 3) {
             float currentY = gridVertices[i + 1];
@@ -292,39 +301,21 @@ void cursor_position_callback(GLFWwindow* window, double xpos, double ypos) {
     cameraPos += cameraUp * dy * pan_sensitivity;
 }
 
-void calculateTargetDeformation(std::vector<float>& targetVertices, const glm::vec3& spherePosition, const ParticleSystem& particles) {
-    const float base_amplitude_sphere = -4.0f;
-    const float base_y_sphere = 1.0f;
-    const float height_sensitivity_sphere = 2.0f;
-    const float steepness_sphere = 0.2f;
-
-    // particle mass
-    const float particle_mass_scale = -0.05f; 
-    const float steepness_particles = 0.05f;
-    
-    float dynamic_amplitude_sphere = base_amplitude_sphere + (spherePosition.y - base_y_sphere) * height_sensitivity_sphere;
-    dynamic_amplitude_sphere = std::min(0.0f, dynamic_amplitude_sphere);
-
-    float amplitude_particles = particles.TotalMass * particle_mass_scale;
-
-    for (size_t i = 0; i < targetVertices.size(); i += 3) {
+void calculateTargetDeformation(std::vector<float>& targetVertices, const std::vector<GravitationalBody>& allBodies) {
+    for (size_t i = 0; i < targetVertices.size(); i += 3) { 
         float x = targetVertices[i];
         float z = targetVertices[i + 2];
         
-        float dx_sphere = x - spherePosition.x;
-        float dz_sphere = z - spherePosition.z;
-        float distSq_sphere = dx_sphere * dx_sphere + dz_sphere * dz_sphere;
-        float deformation_sphere = dynamic_amplitude_sphere * exp(-steepness_sphere * distSq_sphere);
+        float totalPotential = 0.0f;
 
-        float deformation_particles = 0.0f;
-        if (particles.TotalMass > 0.01f) {
-            float dx_particles = x - particles.CenterOfMass.x;
-            float dz_particles = z - particles.CenterOfMass.z;
-            float distSq_particles = dx_particles * dx_particles + dz_particles * dz_particles;
-            deformation_particles = amplitude_particles * exp(-steepness_particles * distSq_particles);
+        for (const auto& body : allBodies)
+        {
+            float dx = x - body.Position.x;
+            float dz = z - body.Position.z;
+            float rSq = dx * dx + dz * dz;
+            totalPotential += -G * body.Mass / sqrt(rSq + SOFTENING_FACTOR * SOFTENING_FACTOR);
         }
-
-        targetVertices[i + 1] = deformation_sphere + deformation_particles;
+        targetVertices[i + 1] = totalPotential * VISUAL_SCALE;
     }
 }
 

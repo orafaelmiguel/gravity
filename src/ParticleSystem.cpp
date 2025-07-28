@@ -52,7 +52,7 @@ void ParticleSystem::init()
         this->particles.push_back(Particle());
 }
 
-void ParticleSystem::Update(float dt, const glm::vec3& gravityObjectPos, unsigned int newParticles, glm::vec3 spawnOffset)
+void ParticleSystem::Update(float dt, const std::vector<GravitationalBody>& allBodies, unsigned int newParticles, glm::vec3 spawnOffset)
 {
     for (unsigned int i = 0; i < newParticles; ++i)
     {
@@ -62,8 +62,7 @@ void ParticleSystem::Update(float dt, const glm::vec3& gravityObjectPos, unsigne
 
     this->TotalMass = 0.0f;
     this->CenterOfMass = glm::vec3(0.0f);
-    int activeParticles = 0;
-
+    
     for (Particle& p : this->particles)
     {
         if (p.Life > 0.0f)
@@ -75,10 +74,7 @@ void ParticleSystem::Update(float dt, const glm::vec3& gravityObjectPos, unsigne
                 for (const auto& body : allBodies)
                 {
                     float distSq = glm::dot(body.Position - p.Position, body.Position - p.Position);
-                    float dist = sqrt(distSq + SOFTENING_FACTOR * SOFTENING_FACTOR);
-                    
                     float forceMagnitude = G * body.Mass * p.Mass / (distSq + SOFTENING_FACTOR * SOFTENING_FACTOR);
-                    
                     glm::vec3 forceDir = glm::normalize(body.Position - p.Position);
                     totalForce += forceDir * forceMagnitude;
                 }
@@ -86,6 +82,7 @@ void ParticleSystem::Update(float dt, const glm::vec3& gravityObjectPos, unsigne
                 p.Velocity += totalForce / p.Mass * dt;
                 p.Position += p.Velocity * dt;
                 p.Color.a = p.Life / 5.0f;
+
                 this->TotalMass += p.Mass;
                 this->CenterOfMass += p.Position * p.Mass;
             }
