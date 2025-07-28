@@ -3,6 +3,8 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include "PostProcessor.h"
+#include <glm/gtc/type_ptr.hpp> 
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -42,6 +44,9 @@ const std::vector<std::string> speedNames = { "Lenta", "Normal", "Rápida" };
 int currentSpeedIndex = 1; 
 bool v_key_pressed_last_frame = false;
 
+bool bloomEnabled = true;
+bool lensingEnabled = true;
+
 int main() {
     if (!glfwInit()) {
         std::cerr << "Falha ao inicializar GLFW" << std::endl;
@@ -72,8 +77,9 @@ int main() {
 
     glEnable(GL_DEPTH_TEST);
 
-    GLuint gridShader = loadShader("grid.vert", "grid.frag");
-    GLuint sphereShader = loadShader("sphere.vert", "sphere.frag");
+    GLuint gridShader = loadShader("shaders/grid.vert", "shaders/grid.frag");
+    GLuint sphereShader = loadShader("shaders/sphere.vert", "shaders/sphere.frag");
+    GLuint postProcessShader = loadShader("shaders/postprocess.vert", "shaders/postprocess.frag");
 
     std::vector<float> gridVertices;
     std::vector<float> targetGridVertices; 
@@ -135,7 +141,10 @@ int main() {
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
     glEnableVertexAttribArray(1);
 
-    while (!glfwWindowShouldClose(window)) {
+     PostProcessor effects(postProcessShader, SCR_WIDTH, SCR_HEIGHT);
+
+     while (!glfwWindowShouldClose(window))
+    {
         processInput(window);
 
         calculateTargetDeformation(targetGridVertices, objectPos);
@@ -149,17 +158,15 @@ int main() {
         glBindBuffer(GL_ARRAY_BUFFER, gridVBO);
         glBufferSubData(GL_ARRAY_BUFFER, 0, gridVertices.size() * sizeof(float), gridVertices.data());
 
-        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-        glm::mat4 projection = glm::perspective(glm::radians(45.0f), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
+        effects.BeginRender();
+        cameraFront = glm::normalize(cameraFront);
+        glm::mat4 projection = glm::perspective(glm::radians(45.0f), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 200.0f);
         glm::mat4 view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
-
+        glm::mat4 model = glm::translate(glm::mat4(1.0f), objectPos);
+        
         glUseProgram(sphereShader);
         glUniformMatrix4fv(glGetUniformLocation(sphereShader, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
         glUniformMatrix4fv(glGetUniformLocation(sphereShader, "view"), 1, GL_FALSE, glm::value_ptr(view));
-        glm::mat4 model = glm::mat4(1.0f);
-        model = glm::translate(model, objectPos);
         glUniformMatrix4fv(glGetUniformLocation(sphereShader, "model"), 1, GL_FALSE, glm::value_ptr(model));
         glUniform3fv(glGetUniformLocation(sphereShader, "objectColor"), 1, glm::value_ptr(glm::vec3(0.8f, 0.8f, 0.9f)));
         glUniform3fv(glGetUniformLocation(sphereShader, "lightColor"), 1, glm::value_ptr(glm::vec3(1.0f, 1.0f, 1.0f)));
@@ -176,6 +183,15 @@ int main() {
         glBindVertexArray(gridVAO);
         glDrawElements(GL_LINES, gridIndices.size(), GL_UNSIGNED_INT, 0);
 
+        effects.EndRender(); 
+
+        model = glm::translate(glm::mat4(1.0f), objectPos);
+        glm::vec4 clipSpacePos = projection * view * model * glm::vec4(0.0, 0.0, 0.0, 1.0);
+        glm::vec3 ndcSpacePos = glm::vec3(clipSpacePos) / clipSpacePos.w;
+        glm::vec2 screenPos = (glm::vec2(ndcSpacePos.x, ndcSpacePos.y) + 1.0f) / 2.0f;
+
+        effects.Render(screenPos, bloomEnabled, lensingEnabled);
+
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
@@ -188,6 +204,8 @@ int main() {
     glDeleteBuffers(1, &sphereEBO);
     glDeleteProgram(gridShader);
     glDeleteProgram(sphereShader);
+    glDeleteProgram(postProcessShader);
+
     glfwTerminate();
     return 0;
 }

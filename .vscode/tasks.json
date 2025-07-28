@@ -6,11 +6,13 @@
             "type": "cppbuild",
             "command": "C:/msys64/mingw64/bin/g++.exe",
             "args": [
-                "-fdiagnostics-color=always",
+                 "-fdiagnostics-color=always",
                 "-g",
-                "${workspaceFolder}/main.cpp",
+                "${workspaceFolder}/src/*.cpp",
                 "-o",
-                "${workspaceFolder}/src/gravity_sim.exe",
+                "${workspaceFolder}/build/gravity_sim.exe",
+                "-I",
+                "${workspaceFolder}/include",
                 "-I",
                 "C:/msys64/mingw64/include",
                 "-L",
@@ -19,7 +21,7 @@
                 "-lglfw3",
                 "-lopengl32",
                 "-static-libgcc",
-                "-static-libstdc++",
+                "-static-libstdc++"
             ],
             "options": {
                 "cwd": "${workspaceFolder}"
