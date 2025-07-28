@@ -1,9 +1,12 @@
 #include "ParticleSystem.h"
+#include <glm/gtc/matrix_transform.hpp> 
+#include <glm/gtc/type_ptr.hpp>         
+#include <iostream>
 
 const float BASE_AMPLITUDE = -4.0f;
 const float BASE_Y = 1.0f;
 const float HEIGHT_SENSITIVITY = 2.0f;
-const float STEEPNESS = 0.2f;
+const float STEEPNESS = 0.2f; 
 
 float calculateGridHeight(float x, float z, const glm::vec3& gravityObjectPos) {
     float dynamic_amplitude = BASE_AMPLITUDE + (gravityObjectPos.y - BASE_Y) * HEIGHT_SENSITIVITY;
@@ -13,7 +16,7 @@ float calculateGridHeight(float x, float z, const glm::vec3& gravityObjectPos) {
     float dz = z - gravityObjectPos.z;
     float distanceSq = dx * dx + dz * dz;
 
-    return dynamic_amplitude * exp(-steepness * distanceSq);
+    return dynamic_amplitude * exp(-STEEPNESS * distanceSq); // <-- CORREÇÃO: Usando a constante correta
 }
 
 
@@ -32,13 +35,8 @@ void ParticleSystem::init()
 {
     GLuint VBO;
     float particle_quad[] = {
-        -0.05f,  0.05f,
-         0.05f, -0.05f,
-        -0.05f, -0.05f,
-
-        -0.05f,  0.05f,
-         0.05f,  0.05f,
-         0.05f, -0.05f
+        -0.05f,  0.05f,  0.05f, -0.05f, -0.05f, -0.05f,
+        -0.05f,  0.05f,  0.05f,  0.05f,  0.05f, -0.05f
     };
     glGenVertexArrays(1, &this->VAO);
     glGenBuffers(1, &VBO);
@@ -67,8 +65,9 @@ void ParticleSystem::Update(float dt, const glm::vec3& gravityObjectPos, unsigne
         p.Life -= dt; 
         if (p.Life > 0.0f)
         {	
-            float epsilon = 0.1f; 
-            float gravityStrength = 30.0f; 
+            float epsilon = 0.1f;
+            float gravityStrength = 30.0f;
+
             float height_px = calculateGridHeight(p.Position.x + epsilon, p.Position.z, gravityObjectPos);
             float height_nx = calculateGridHeight(p.Position.x - epsilon, p.Position.z, gravityObjectPos);
             float height_pz = calculateGridHeight(p.Position.x, p.Position.z + epsilon, gravityObjectPos);
@@ -79,13 +78,16 @@ void ParticleSystem::Update(float dt, const glm::vec3& gravityObjectPos, unsigne
 
             p.Velocity += glm::normalize(force) * gravityStrength * dt;
             p.Position += p.Velocity * dt;
-            p.Color.a = p.Life / 5.0f; // fadeout
+            p.Color.a = p.Life / 5.0f;
         }
     }
 }
 
 void ParticleSystem::Render(const glm::mat4& view, const glm::mat4& projection)
 {
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    
     glUseProgram(this->shader);
     glUniformMatrix4fv(glGetUniformLocation(this->shader, "view"), 1, GL_FALSE, glm::value_ptr(view));
     glUniformMatrix4fv(glGetUniformLocation(this->shader, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
@@ -95,19 +97,17 @@ void ParticleSystem::Render(const glm::mat4& view, const glm::mat4& projection)
         if (particle.Life > 0.0f)
         {
             glm::mat4 model = glm::mat4(1.0f);
-            model = glm::translate(model, particle.Position);
+            model = glm::translate(model, particle.Position); 
             
             glUniformMatrix4fv(glGetUniformLocation(this->shader, "model"), 1, GL_FALSE, glm::value_ptr(model));
             glUniform4fv(glGetUniformLocation(this->shader, "particleColor"), 1, glm::value_ptr(particle.Color));
 
-            glBindVertexArray(this.VAO);
+            glBindVertexArray(this->VAO); 
             glDrawArrays(GL_TRIANGLES, 0, 6);
             glBindVertexArray(0);
         }
     }
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
+    
     glDisable(GL_BLEND);
 }
 
@@ -118,14 +118,15 @@ unsigned int ParticleSystem::firstUnusedParticle()
             return i;
         }
     }
-    return 0; 
+    return 0;
 }
 
 void ParticleSystem::respawnParticle(Particle& particle, glm::vec3 spawnOffset)
 {
-    float random = ((rand() % 100) - 50) / 10.0f;
+    float randomX = ((rand() % 100) - 50) / 20.0f;
+    float randomZ = ((rand() % 100) - 50) / 20.0f;
     float rColor = 0.5f + ((rand() % 100) / 100.0f);
-    particle.Position = glm::vec3(random, 5.0f, random) + spawnOffset;
+    particle.Position = glm::vec3(randomX, 5.0f, randomZ) + spawnOffset;
     particle.Life = 5.0f;
     particle.Velocity = glm::vec3(0.0f);
     particle.Color = glm::vec4(rColor, rColor, 1.0f, 1.0f);
