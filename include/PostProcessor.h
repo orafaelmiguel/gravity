@@ -1,3 +1,4 @@
+// include/PostProcessor.h
 #ifndef POST_PROCESSOR_H
 #define POST_PROCESSOR_H
 
@@ -7,22 +8,33 @@
 class PostProcessor
 {
 public:
-    PostProcessor(GLuint shader, unsigned int width, unsigned int height);
+    PostProcessor(GLuint postProcessShader, GLuint blurShader, unsigned int width, unsigned int height);
     ~PostProcessor();
 
     void BeginRender();
     void EndRender();
-    void Render(glm::vec2 sphereScreenPos, bool enableBloom, bool enableLensing);
+
+    void ProcessBloom();
+    
+    void RenderFinalScene(bool enableBloom);
 
 private:
+    // main framebuffer
     GLuint FBO;
     GLuint RBO;
-    GLuint TextureID;
+    GLuint SceneTexture; 
+    GLuint BrightnessTexture; 
+
+    GLuint PingPongFBO[2];
+    GLuint PingPongTexture[2];
+
     GLuint QuadVAO;
-    GLuint Shader;
+    
+    GLuint PostProcessShader;
+    GLuint BlurShader;
+
     unsigned int Width, Height;
 
     void initRenderData();
 };
-
 #endif
