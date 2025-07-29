@@ -21,7 +21,8 @@ public:
     ParticleSystem(GLuint shader, unsigned int amount);
     ~ParticleSystem();
 
-    void Update(float dt, const std::vector<GravitationalBody>& allBodies, unsigned int newParticles, glm::vec3 spawnOffset = glm::vec3(0.0f));
+    void Update(float dt, unsigned int newParticles, glm::vec3 spawnOffset = glm::vec3(0.0f));
+    
     void Render(const glm::mat4& view, const glm::mat4& projection);
 
     glm::vec3 CenterOfMass;

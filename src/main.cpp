@@ -145,7 +145,9 @@ int main() {
     PostProcessor effects(postProcessShader, blurShader, SCR_WIDTH, SCR_HEIGHT);
     ParticleSystem particles(particleShader, 5500);
     
-    float sphereGravitationalParameter = 400.0f; // star
+    const float baseSphereParameter = 400.0f;   // força gravitacional base
+    const float baseSphereY = 1.0f;             
+    const float heightSensitivity = 200.0f;
     float particleCloudGravParameterScale = 2.0f;
 
     while (!glfwWindowShouldClose(window))
@@ -156,16 +158,19 @@ int main() {
 
         processInput(window);
 
+        float dynamicSphereParameter = baseSphereParameter - (objectPos.y - baseSphereY) * heightSensitivity;
+        dynamicSphereParameter = std::max(0.0f, dynamicSphereParameter);
+
         //gravity logic here
         std::vector<GravitationalBody> allBodies;
-        allBodies.push_back(GravitationalBody{ objectPos, sphereGravitationalParameter }); 
+        allBodies.push_back(GravitationalBody{ objectPos, dynamicSphereParameter }); 
 
         if (particles.TotalMass > 0.1f) {
             float cloudGravParameter = particles.TotalMass * particleCloudGravParameterScale;
-            allBodies.push_back(GravitationalBody{ particles.CenterOfMass, cloudGravParameter });
+            allBodies.push_back(GravitationalBody{ particles.CenterOfMass, cloudGravParameter }); 
         }
 
-        particles.Update(deltaTime, allBodies, 10, objectPos);
+        particles.Update(deltaTime, 10, objectPos);
         calculateTargetDeformation(targetGridVertices, allBodies);
 
         for (size_t i = 0; i < gridVertices.size(); i += 3) {
@@ -312,16 +317,24 @@ void cursor_position_callback(GLFWwindow* window, double xpos, double ypos) {
 
 void calculateTargetDeformation(std::vector<float>& targetVertices, const std::vector<GravitationalBody>& allBodies) {
     for (size_t i = 0; i < targetVertices.size(); i += 3) {
-        float x = targetVertices[i];
-        float z = targetVertices[i + 2];
+        int vertexIndex = i / 3;
+        int col = vertexIndex % (GRID_SIZE + 1);
+        int row = vertexIndex / (GRID_SIZE + 1);
+
+        float x = (col - GRID_SIZE / 2.0f) * GRID_SCALE;
+        float z = (row - GRID_SIZE / 2.0f) * GRID_SCALE;
+        
         float totalPotential = 0.0f;
+
         for (const auto& body : allBodies)
         {
             float dx = x - body.Position.x;
             float dz = z - body.Position.z;
             float rSq = dx * dx + dz * dz;
+            
             totalPotential += -body.GravitationalParameter / sqrt(rSq + SOFTENING_FACTOR * SOFTENING_FACTOR);
         }
+        
         targetVertices[i + 1] = totalPotential * VISUAL_SCALE;
     }
 }

@@ -1,27 +1,9 @@
 #include "ParticleSystem.h"
 #include <random>
 #include <glm/gtc/random.hpp>
-#include "Physics.h"
 #include <glm/gtc/matrix_transform.hpp> 
 #include <glm/gtc/type_ptr.hpp>         
 #include <iostream>
-
-const float BASE_AMPLITUDE = -4.0f;
-const float BASE_Y = 1.0f;
-const float HEIGHT_SENSITIVITY = 2.0f;
-const float STEEPNESS = 0.2f; 
-
-float calculateGridHeight(float x, float z, const glm::vec3& gravityObjectPos) {
-    float dynamic_amplitude = BASE_AMPLITUDE + (gravityObjectPos.y - BASE_Y) * HEIGHT_SENSITIVITY;
-    dynamic_amplitude = std::min(0.0f, dynamic_amplitude);
-    
-    float dx = x - gravityObjectPos.x;
-    float dz = z - gravityObjectPos.z;
-    float distanceSq = dx * dx + dz * dz;
-
-    return dynamic_amplitude * exp(-STEEPNESS * distanceSq); // <-- CORREÇÃO: Usando a constante correta
-}
-
 
 ParticleSystem::ParticleSystem(GLuint shader, unsigned int amount)
     : shader(shader), amount(amount)
@@ -54,47 +36,25 @@ void ParticleSystem::init()
         this->particles.push_back(Particle());
 }
 
-void ParticleSystem::Update(float dt, const std::vector<GravitationalBody>& allBodies, unsigned int newParticles, glm::vec3 spawnOffset)
+void ParticleSystem::Update(float dt, unsigned int newParticles, glm::vec3 spawnOffset)
 {
     for (unsigned int i = 0; i < newParticles; ++i)
     {
         int unusedParticle = this->firstUnusedParticle();
         this->respawnParticle(this->particles[unusedParticle], spawnOffset);
     }
-
-    this->TotalMass = 0.0f;
-    this->CenterOfMass = glm::vec3(0.0f);
     
     for (Particle& p : this->particles)
     {
         if (p.Life > 0.0f)
         {
-            p.Life -= dt;
+            p.Life -= dt; 
             if (p.Life > 0.0f)
-            {
-                glm::vec3 totalForce(0.0f);
-                for (const auto& body : allBodies)
-                {
-                    float distSq = glm::dot(body.Position - p.Position, body.Position - p.Position);
-                    float forceMagnitude = body.GravitationalParameter * p.Mass / (distSq + SOFTENING_FACTOR * SOFTENING_FACTOR);
-                    
-                    glm::vec3 forceDir = glm::normalize(body.Position - p.Position);
-                    totalForce += forceDir * forceMagnitude;
-                }
-
-                p.Velocity += totalForce / p.Mass * dt;
+            {   
                 p.Position += p.Velocity * dt;
                 p.Color.a = p.Life / 5.0f;
-
-                this->TotalMass += p.Mass;
-                this->CenterOfMass += p.Position * p.Mass;
             }
         }
-    }
-
-    if (this->TotalMass > 0.0f)
-    {
-        this->CenterOfMass /= this->TotalMass;
     }
 }
 
