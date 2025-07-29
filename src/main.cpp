@@ -156,15 +156,16 @@ int main() {
 
         processInput(window);
 
+        //gravity logic here
         std::vector<GravitationalBody> allBodies;
-        allBodies.push_back(GravitationalBody{ objectPos, sphereGravitationalParameter });
+        allBodies.push_back(GravitationalBody{ objectPos, sphereGravitationalParameter }); 
 
         if (particles.TotalMass > 0.1f) {
             float cloudGravParameter = particles.TotalMass * particleCloudGravParameterScale;
             allBodies.push_back(GravitationalBody{ particles.CenterOfMass, cloudGravParameter });
         }
 
-        particles.Update(deltaTime, allBodies, 5, objectPos);
+        particles.Update(deltaTime, allBodies, 10, objectPos);
         calculateTargetDeformation(targetGridVertices, allBodies);
 
         for (size_t i = 0; i < gridVertices.size(); i += 3) {

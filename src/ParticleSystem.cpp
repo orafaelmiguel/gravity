@@ -1,4 +1,6 @@
 #include "ParticleSystem.h"
+#include <random>
+#include <glm/gtc/random.hpp>
 #include "Physics.h"
 #include <glm/gtc/matrix_transform.hpp> 
 #include <glm/gtc/type_ptr.hpp>         
@@ -134,14 +136,35 @@ unsigned int ParticleSystem::firstUnusedParticle()
     return 0;
 }
 
+unsigned int lastUsedParticle = 0;
+
 void ParticleSystem::respawnParticle(Particle& particle, glm::vec3 spawnOffset)
 {
-    float randomX = ((rand() % 100) - 50) / 20.0f;
-    float randomZ = ((rand() % 100) - 50) / 20.0f;
-    float rColor = 0.5f + ((rand() % 100) / 100.0f);
-    particle.Position = spawnOffset + glm::vec3(randomX, 2.0f, randomZ); 
-    particle.Life = 5.0f;
-    particle.Velocity = glm::vec3(0.0f);
-    particle.Mass = 1.0f; //mass 
-    particle.Color = glm::vec4(rColor, rColor, 1.0f, 1.0f);
+    float jetSpread = 0.3f;  
+    float jetSpeed = 3.0f;    
+    float spawnRadius = 1.2f; 
+
+    glm::vec3 jetDirection;
+    if (lastUsedParticle % 2 == 0) {
+        jetDirection = glm::vec3(1.0f, 0.0f, 0.0f); 
+    } else {
+        jetDirection = glm::vec3(-1.0f, 0.0f, 0.0f); 
+    }
+    lastUsedParticle++;
+    if(lastUsedParticle > 1000) lastUsedParticle = 0; 
+
+    particle.Position = spawnOffset + jetDirection * spawnRadius;
+    
+    glm::vec3 randomSpread = glm::ballRand(jetSpread);
+    
+    particle.Velocity = (jetDirection + randomSpread) * jetSpeed;
+
+    if (jetDirection.x > 0) {
+         particle.Color = glm::vec4(1.0f, 0.2f, 0.2f, 1.0f);
+    } else {
+         particle.Color = glm::vec4(0.2f, 0.5f, 1.0f, 1.0f);
+    }
+
+    particle.Life = 8.0f; 
+    particle.Mass = 1.0f;
 }
