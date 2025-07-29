@@ -78,6 +78,7 @@ int main() {
     GLuint sphereShader = loadShader("shaders/sphere.vert", "shaders/sphere.frag");
     GLuint postProcessShader = loadShader("shaders/postprocess.vert", "shaders/postprocess.frag");
     GLuint particleShader = loadShader("shaders/particle.vert", "shaders/particle.frag");
+    GLuint blurShader = loadShader("shaders/blur.vert", "shaders/blur.frag");
 
     std::vector<float> gridVertices;
     std::vector<float> targetGridVertices; 
@@ -139,7 +140,9 @@ int main() {
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
     glEnableVertexAttribArray(1);
 
-    PostProcessor effects(postProcessShader, SCR_WIDTH, SCR_HEIGHT);
+    // POST PROCESSOR HERE.
+
+    PostProcessor effects(postProcessShader, blurShader, SCR_WIDTH, SCR_HEIGHT);
     ParticleSystem particles(particleShader, 5500);
     
     float sphereGravitationalParameter = 400.0f; // star
@@ -201,14 +204,15 @@ int main() {
         // render particles
         particles.Render(view, projection);
 
-        effects.EndRender(); 
+        effects.EndRender();
+        effects.ProcessBloom(); 
 
         model = glm::translate(glm::mat4(1.0f), objectPos);
         glm::vec4 clipSpacePos = projection * view * model * glm::vec4(0.0, 0.0, 0.0, 1.0);
         glm::vec3 ndcSpacePos = glm::vec3(clipSpacePos) / clipSpacePos.w;
         glm::vec2 screenPos = (glm::vec2(ndcSpacePos.x, ndcSpacePos.y) + 1.0f) / 2.0f;
 
-        effects.Render(screenPos, bloomEnabled, lensingEnabled);
+        effects.RenderFinalScene(bloomEnabled);
 
         glfwSwapBuffers(window);
         glfwPollEvents();
