@@ -6,6 +6,7 @@
 #include "PostProcessor.h"
 #include "ParticleSystem.h"
 #include "Physics.h"
+#include "utils.h"
 #include <glm/gtc/type_ptr.hpp> 
 #include <iostream>
 #include <fstream>
@@ -20,8 +21,6 @@ void processInput(GLFWwindow *window);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 void mouse_button_callback(GLFWwindow* window, int button, int action, int mods);
 void cursor_position_callback(GLFWwindow* window, double xpos, double ypos);
-GLuint loadShader(const char* vertexPath, const char* fragmentPath);
-void generateSphere(std::vector<float>& vertices, std::vector<unsigned int>& indices, float radius, int sectorCount, int stackCount);
 void calculateTargetDeformation(std::vector<float>& targetVertices, const std::vector<GravitationalBody>& allBodies);
 
 const unsigned int SCR_WIDTH = 1280, SCR_HEIGHT = 720;
@@ -324,128 +323,4 @@ void calculateTargetDeformation(std::vector<float>& targetVertices, const std::v
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
     glViewport(0, 0, width, height);
-}
-
-GLuint loadShader(const char* vertexPath, const char* fragmentPath) {
-    std::string vertexCode;
-    std::string fragmentCode;
-    std::ifstream vShaderFile;
-    std::ifstream fShaderFile;
-    vShaderFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
-    fShaderFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
-    try {
-        vShaderFile.open(vertexPath);
-        fShaderFile.open(fragmentPath);
-        std::stringstream vShaderStream, fShaderStream;
-        vShaderStream << vShaderFile.rdbuf();
-        fShaderStream << fShaderFile.rdbuf();
-        vShaderFile.close();
-        fShaderFile.close();
-        vertexCode = vShaderStream.str();
-        fragmentCode = fShaderStream.str();
-    }
-    catch (std::ifstream::failure& e) {
-        std::cerr << "ERROR::SHADER::FILE_NOT_READ: " << vertexPath << " ou " << fragmentPath << std::endl;
-        return 0; 
-    }
-    const char* vShaderCode = vertexCode.c_str();
-    const char* fShaderCode = fragmentCode.c_str();
-
-    unsigned int vertex, fragment;
-    int success;
-    char infoLog[512];
-
-    vertex = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vertex, 1, &vShaderCode, NULL);
-    glCompileShader(vertex);
-    glGetShaderiv(vertex, GL_COMPILE_STATUS, &success);
-    if (!success) {
-        glGetShaderInfoLog(vertex, 512, NULL, infoLog);
-        std::cerr << "ERROR::SHADER::FRAGMENT::COMPILATION_ERROR FOR " << vertexPath << "\n" << infoLog << std::endl;
-        return 0;
-    }
-
-    fragment = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fragment, 1, &fShaderCode, NULL);
-    glCompileShader(fragment);
-    glGetShaderiv(fragment, GL_COMPILE_STATUS, &success);
-    if (!success) {
-        glGetShaderInfoLog(fragment, 512, NULL, infoLog);
-        std::cerr << "ERROR::SHADER::FRAGMENT::COMPILATION_ERROR FOR " << fragmentPath << "\n" << infoLog << std::endl;
-        return 0;
-    }
-
-    GLuint ID = glCreateProgram();
-    glAttachShader(ID, vertex);
-    glAttachShader(ID, fragment);
-    glLinkProgram(ID);
-    glGetProgramiv(ID, GL_LINK_STATUS, &success);
-    if (!success) {
-        glGetProgramInfoLog(ID, 512, NULL, infoLog);
-        std::cerr << "ERROR::SHADER::PROGRAM::LINKAGEM_ERROR\n" << infoLog << std::endl;
-        glDeleteShader(vertex);
-        glDeleteShader(fragment);
-        return 0;
-    }
-
-    glDeleteShader(vertex);
-    glDeleteShader(fragment);
-
-    std::cout << "SHADER LOADED: " << vertexPath << " | " << fragmentPath << std::endl;
-    return ID;
-}
-
-void generateSphere(std::vector<float>& vertices, std::vector<unsigned int>& indices, float radius, int sectorCount, int stackCount) {
-    vertices.clear();
-    indices.clear();
-
-    float x, y, z, xy;
-    float nx, ny, nz, lengthInv = 1.0f / radius;
-
-    float sectorStep = 2 * (float)M_PI / sectorCount;
-    float stackStep = (float)M_PI / stackCount;
-    float sectorAngle, stackAngle;
-
-    for (int i = 0; i <= stackCount; ++i) {
-        stackAngle = (float)M_PI / 2 - i * stackStep;
-        xy = radius * cosf(stackAngle);
-        z = radius * sinf(stackAngle);
-
-        for (int j = 0; j <= sectorCount; ++j) {
-            sectorAngle = j * sectorStep;
-
-            x = xy * cosf(sectorAngle);
-            y = xy * sinf(sectorAngle);
-            vertices.push_back(x);
-            vertices.push_back(y);
-            vertices.push_back(z);
-
-            nx = x * lengthInv;
-            ny = y * lengthInv;
-            nz = z * lengthInv;
-            vertices.push_back(nx);
-            vertices.push_back(ny);
-            vertices.push_back(nz);
-        }
-    }
-
-    int k1, k2;
-    for (int i = 0; i < stackCount; ++i) {
-        k1 = i * (sectorCount + 1);
-        k2 = k1 + sectorCount + 1;
-
-        for (int j = 0; j < sectorCount; ++j, ++k1, ++k2) {
-            if (i != 0) {
-                indices.push_back(k1);
-                indices.push_back(k2);
-                indices.push_back(k1 + 1);
-            }
-
-            if (i != (stackCount - 1)) {
-                indices.push_back(k1 + 1);
-                indices.push_back(k2);
-                indices.push_back(k2 + 1);
-            }
-        }
-    }
 }
