@@ -170,7 +170,7 @@ int main() {
             allBodies.push_back(GravitationalBody{ particles.CenterOfMass, cloudGravParameter }); 
         }
 
-        particles.Update(deltaTime, 10, objectPos);
+        particles.Update(deltaTime, allBodies, 10, objectPos);
         calculateTargetDeformation(targetGridVertices, allBodies);
 
         for (size_t i = 0; i < gridVertices.size(); i += 3) {

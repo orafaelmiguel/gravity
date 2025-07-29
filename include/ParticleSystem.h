@@ -1,3 +1,4 @@
+// include/ParticleSystem.h
 #ifndef PARTICLE_SYSTEM_H
 #define PARTICLE_SYSTEM_H
 
@@ -12,7 +13,13 @@ struct Particle {
     float     Life;
     float     Mass;
 
-    Particle() : Position(0.0f), Velocity(0.0f), Color(1.0f), Life(0.0f), Mass(0.0f) { }
+    float Density;
+    float Pressure;
+    glm::vec3 Force;
+
+    Particle() : 
+        Position(0.0f), Velocity(0.0f), Color(1.0f), Life(0.0f), Mass(1.0f),
+        Density(0.0f), Pressure(0.0f), Force(0.0f) { }
 };
 
 class ParticleSystem
@@ -21,7 +28,7 @@ public:
     ParticleSystem(GLuint shader, unsigned int amount);
     ~ParticleSystem();
 
-    void Update(float dt, unsigned int newParticles, glm::vec3 spawnOffset = glm::vec3(0.0f));
+    void Update(float dt, const std::vector<GravitationalBody>& allBodies, unsigned int newParticles, glm::vec3 spawnOffset = glm::vec3(0.0f));
     
     void Render(const glm::mat4& view, const glm::mat4& projection);
 
@@ -34,7 +41,6 @@ private:
     GLuint shader;
     GLuint VAO;
 
-    // help?
     void init();
     unsigned int firstUnusedParticle();
     void respawnParticle(Particle& particle, glm::vec3 spawnOffset);
