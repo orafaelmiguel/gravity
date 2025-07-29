@@ -24,32 +24,24 @@ GLuint loadShader(const char* vertexPath, const char* fragmentPath);
 void generateSphere(std::vector<float>& vertices, std::vector<unsigned int>& indices, float radius, int sectorCount, int stackCount);
 void calculateTargetDeformation(std::vector<float>& targetVertices, const std::vector<GravitationalBody>& allBodies);
 
-
-const unsigned int SCR_WIDTH = 1280;
-const unsigned int SCR_HEIGHT = 720;
-
+const unsigned int SCR_WIDTH = 1280, SCR_HEIGHT = 720;
 glm::vec3 cameraPos   = glm::vec3(0.0f, 15.0f, 25.0f);
 glm::vec3 cameraFront = glm::vec3(0.0f, -0.5f, -1.0f);
 glm::vec3 cameraUp    = glm::vec3(0.0f, 1.0f, 0.0f);
-
 glm::vec3 objectPos = glm::vec3(0.0f, 1.0f, 0.0f);
-
 bool is_panning = false;
+bool is_rotating = false;
 double last_mouse_x = 0.0, last_mouse_y = 0.0;
-
 const int GRID_SIZE = 100;
 const float GRID_SCALE = 0.5f;
 const float GRID_SMOOTHING_FACTOR = 0.08f;
-
 const std::vector<float> horizontalSpeedSettings = { 0.01f, 0.04f, 0.09f };
 const std::vector<float> verticalSpeedSettings = { 0.015f, 0.06f, 0.13f };
 const std::vector<std::string> speedNames = { "Lenta", "Normal", "Rápida" };
-int currentSpeedIndex = 1; 
+int currentSpeedIndex = 1;
 bool v_key_pressed_last_frame = false;
-
 bool bloomEnabled = true;
 bool lensingEnabled = true;
-
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
 
@@ -163,9 +155,11 @@ int main() {
         processInput(window);
 
         std::vector<GravitationalBody> allBodies;
-        allBodies.push_back({ objectPos, sphereMass }); 
+        allBodies.push_back(GravitationalBody{ objectPos, sphereGravitationalParameter });
+
         if (particles.TotalMass > 0.1f) {
-            allBodies.push_back({ particles.CenterOfMass, particles.TotalMass }); 
+            float cloudGravParameter = particles.TotalMass * particleCloudGravParameterScale;
+            allBodies.push_back(GravitationalBody{ particles.CenterOfMass, cloudGravParameter });
         }
 
         particles.Update(deltaTime, allBodies, 5, objectPos);
@@ -282,33 +276,41 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
             is_panning = false;
         }
     }
+    if (button == GLFW_MOUSE_BUTTON_RIGHT) {
+        if (action == GLFW_PRESS) {
+            is_rotating = true;
+            glfwGetCursorPos(window, &last_mouse_x, &last_mouse_y);
+        } else if (action == GLFW_RELEASE) {
+            is_rotating = false;
+        }
+    }
 }
 
 void cursor_position_callback(GLFWwindow* window, double xpos, double ypos) {
-    if (!is_panning) {
-        return;
+    if (is_panning) {
+        float dx = xpos - last_mouse_x;
+        float dy = ypos - last_mouse_y;
+        float pan_sensitivity = 0.05f;
+        glm::vec3 right = glm::normalize(glm::cross(cameraFront, cameraUp));
+        cameraPos -= right * dx * pan_sensitivity;
+        cameraPos += cameraUp * dy * pan_sensitivity;
     }
-
-    float dx = xpos - last_mouse_x;
-    float dy = ypos - last_mouse_y;
-
+    else if (is_rotating) {
+        float dx = xpos - last_mouse_x;
+        float rotation_sensitivity = 0.1f;
+        float yaw_angle = -dx * rotation_sensitivity;
+        glm::mat4 rotation_matrix = glm::rotate(glm::mat4(1.0f), glm::radians(yaw_angle), cameraUp);
+        cameraFront = glm::vec3(rotation_matrix * glm::vec4(cameraFront, 0.0f));
+    }
     last_mouse_x = xpos;
     last_mouse_y = ypos;
-
-    float pan_sensitivity = 0.05f;
-    glm::vec3 right = glm::normalize(glm::cross(cameraFront, cameraUp));
-    
-    cameraPos -= right * dx * pan_sensitivity;
-    cameraPos += cameraUp * dy * pan_sensitivity;
 }
 
 void calculateTargetDeformation(std::vector<float>& targetVertices, const std::vector<GravitationalBody>& allBodies) {
     for (size_t i = 0; i < targetVertices.size(); i += 3) {
         float x = targetVertices[i];
         float z = targetVertices[i + 2];
-        
         float totalPotential = 0.0f;
-
         for (const auto& body : allBodies)
         {
             float dx = x - body.Position.x;
@@ -316,7 +318,6 @@ void calculateTargetDeformation(std::vector<float>& targetVertices, const std::v
             float rSq = dx * dx + dz * dz;
             totalPotential += -body.GravitationalParameter / sqrt(rSq + SOFTENING_FACTOR * SOFTENING_FACTOR);
         }
-        
         targetVertices[i + 1] = totalPotential * VISUAL_SCALE;
     }
 }

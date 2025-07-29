@@ -139,9 +139,9 @@ void ParticleSystem::respawnParticle(Particle& particle, glm::vec3 spawnOffset)
     float randomX = ((rand() % 100) - 50) / 20.0f;
     float randomZ = ((rand() % 100) - 50) / 20.0f;
     float rColor = 0.5f + ((rand() % 100) / 100.0f);
-    particle.Position = spawnOffset + glm::vec3(randomX, 2.0f, randomZ); // Spawn um pouco mais alto
+    particle.Position = spawnOffset + glm::vec3(randomX, 2.0f, randomZ); 
     particle.Life = 5.0f;
     particle.Velocity = glm::vec3(0.0f);
-    particle.Mass = 1.0f; // Massa de inércia da partícula
+    particle.Mass = 1.0f; //mass 
     particle.Color = glm::vec4(rColor, rColor, 1.0f, 1.0f);
 }
