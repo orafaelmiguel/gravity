@@ -16,6 +16,18 @@ const float POLY6 = 315.0f / (64.0f * (float)M_PI * pow(SMOOTHING_RADIUS, 9));
 const float SPIKY_GRAD = -45.0f / ((float)M_PI * pow(SMOOTHING_RADIUS, 6));
 const float VISC_LAP = 45.0f / ((float)M_PI * pow(SMOOTHING_RADIUS, 6));
 
+float calculateTotalPotentialHeight(float x, float z, const std::vector<GravitationalBody>& allBodies) {
+    float totalPotential = 0.0f;
+    for (const auto& body : allBodies)
+    {
+        float dx = x - body.Position.x;
+        float dz = z - body.Position.z;
+        float rSq = dx * dx + dz * dz;
+        totalPotential += -body.GravitationalParameter / sqrt(rSq + SOFTENING_FACTOR * SOFTENING_FACTOR);
+    }
+    return totalPotential * VISUAL_SCALE;
+}
+
 ParticleSystem::ParticleSystem(GLuint shader, unsigned int amount)
     : shader(shader), amount(amount)
 {
@@ -54,16 +66,46 @@ void ParticleSystem::Update(float dt, const std::vector<GravitationalBody>& allB
         int unusedParticle = this->firstUnusedParticle();
         this->respawnParticle(this->particles[unusedParticle], spawnOffset);
     }
+
+    const float restitution = 0.6f; 
+    const float epsilon = 0.01f;     
     
     for (Particle& p : this->particles)
     {
         if (p.Life > 0.0f)
         {
-            p.Life -= dt; 
+            p.Life -= dt;
             if (p.Life > 0.0f)
-            {   
+            {
+                glm::vec3 totalForce(0.0f);
+                for (const auto& body : allBodies)
+                {
+                    float distSq = glm::dot(body.Position - p.Position, body.Position - p.Position);
+                    float forceMagnitude = body.GravitationalParameter * p.Mass / (distSq + SOFTENING_FACTOR * SOFTENING_FACTOR);
+                    glm::vec3 forceDir = glm::normalize(body.Position - p.Position);
+                    totalForce += forceDir * forceMagnitude;
+                }
+                
+                p.Velocity += totalForce / p.Mass * dt;
                 p.Position += p.Velocity * dt;
-                p.Color.a = p.Life / 5.0f;
+                
+                float gridHeight = calculateTotalPotentialHeight(p.Position.x, p.Position.z, allBodies);
+                
+                if (p.Position.y < gridHeight)
+                {
+                    p.Position.y = gridHeight;
+
+                    float height_px = calculateTotalPotentialHeight(p.Position.x + epsilon, p.Position.z, allBodies);
+                    float height_nx = calculateTotalPotentialHeight(p.Position.x - epsilon, p.Position.z, allBodies);
+                    float height_pz = calculateTotalPotentialHeight(p.Position.x, p.Position.z + epsilon, allBodies);
+                    float height_nz = calculateTotalPotentialHeight(p.Position.x, p.Position.z - epsilon, allBodies);
+                    
+                    glm::vec3 normal = glm::normalize(glm::vec3(height_nx - height_px, 2.0f * epsilon, height_nz - height_pz));
+
+                    p.Velocity = glm::reflect(p.Velocity, normal) * restitution;
+                }
+
+                p.Color.a = p.Life / 8.0f;
             }
         }
     }
