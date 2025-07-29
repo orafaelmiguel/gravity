@@ -141,7 +141,7 @@ int main() {
     glEnableVertexAttribArray(1);
 
     PostProcessor effects(postProcessShader, SCR_WIDTH, SCR_HEIGHT);
-    ParticleSystem particles(particleShader, 5000);
+    ParticleSystem particles(particleShader, 5500);
     
     float sphereGravitationalParameter = 400.0f; // star
     float particleCloudGravParameterScale = 2.0f;
